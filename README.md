@@ -86,6 +86,8 @@ Run the model on your own computer and nothing goes to an AI company. Start [Oll
 
 What to expect, from tests on an RTX 2060 Super (8 GB): Qwen3 8B and Qwen3 4B handle simple one-step requests, like the battery level or the phone's status. Multi-step tasks on the screen are another matter: in a calculator test the 4B tapped the wrong buttons and then said it had worked. For real tasks, use a bigger model that's good at tool calling. The first answer of a chat takes longest, since the model first reads about 13k tokens of instructions and tool descriptions. A model running on the phone itself works too, but it's slow and makes the phone lag.
 
+**On this phone:** in Termux, install llama.cpp (`pkg install llama-cpp`), put a `.gguf` model that supports tool calling in `~/models`, and start the server, leaving it running (`termux-wake-lock` keeps Android from stopping it): `llama-server -m ~/models/<file>.gguf -c 24576 --jinja --host 127.0.0.1 --port 8080`. In Buddy: Settings → API keys → Add API key → **llama.cpp**, keep `localhost:8080`, leave the key empty, and use it in an OpenCode chat. Buddy asks the server how much context it runs with (llama.cpp's `/props`) and tells the agent, so a long chat is shortened before it overruns the server. `-c` must be at least 24576, and `--jinja` is what lets the server pass tool calls to the model.
+
 ## Updating
 
 Install the new APK over the old one: chats, settings and sign-ins stay (don't uninstall first). You can also ask Buddy to *"update yourself"*, or let [Obtainium](https://obtainium.imranr.dev) or F-Droid do it ([how](docs/GUIDE.md#updating)).

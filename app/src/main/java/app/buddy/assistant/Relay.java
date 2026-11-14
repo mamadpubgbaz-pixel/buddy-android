@@ -68,13 +68,50 @@ final class Relay {
                     continue;
                 }
                 org.json.JSONArray list = parseModels(body);
-                if (list.length() > 0) return list;
+                if (list.length() > 0) {
+                    localContext(list, origin);
+                    return list;
+                }
             } catch (org.json.JSONException ignored) { // not a model list
             } finally {
                 con.disconnect();
             }
         }
         throw new Exception(error != null ? error : BuddyApp.str(R.string.signin_api_models_none));
+    }
+
+    /**
+     * A llama.cpp server lists the context its model was trained for, not the one it runs with, and Ollama lists
+     * neither; without a size the agent can't tell when a chat is about to overrun the server and needs shortening,
+     * which a small context (a model on a phone) reaches quickly. llama.cpp says what it runs with at /props. Asked only
+     * of a server on this phone or the user's own network, and only when the list left a size unknown; whatever goes
+     * wrong, the list stays as it was.
+     */
+    private static void localContext(org.json.JSONArray list, String origin) {
+        try {
+            if (!Providers.isLocal(origin)) return;
+            boolean unknown = false;
+            for (int i = 0; i < list.length(); i++) unknown |= list.getJSONObject(i).optLong("window") <= 0;
+            if (!unknown) return;
+            HttpURLConnection con = (HttpURLConnection) new URL(origin + "/props").openConnection();
+            try {
+                con.setConnectTimeout(3_000);
+                con.setReadTimeout(5_000);
+                con.setInstanceFollowRedirects(false);
+                if (con.getResponseCode() != 200) return;
+                org.json.JSONObject settings = new org.json.JSONObject(read(con.getInputStream()))
+                        .optJSONObject("default_generation_settings");
+                long window = settings == null ? 0 : settings.optLong("n_ctx", 0);
+                if (window <= 0) return;
+                for (int i = 0; i < list.length(); i++) {
+                    org.json.JSONObject m = list.getJSONObject(i);
+                    if (m.optLong("window") <= 0) m.put("window", window);
+                }
+            } finally {
+                con.disconnect();
+            }
+        } catch (Exception ignored) { // not llama.cpp, or not answering: the sizes stay unknown
+        }
     }
 
     /** What a test request to a service's API found: it answered, it has no such API, or no clear answer. */
