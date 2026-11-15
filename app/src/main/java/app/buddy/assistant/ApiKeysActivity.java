@@ -24,7 +24,10 @@ public class ApiKeysActivity extends Screen {
     /** The agents that can use a service. */
     private static final String[] AGENTS = {"claude", "codex", "opencode"};
 
+    private static final int PICK_MODEL = 71;
+
     private LinearLayout body;
+    private TextView modelStatus;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -63,6 +66,7 @@ public class ApiKeysActivity extends Screen {
     private void render() {
         body.removeAllViews();
         body.addView(text(this, getString(R.string.api_keys_intro), 13, MUTED), full());
+        body.addView(modelCard(), gap(14));
         List<Providers.P> all = new ArrayList<>(Providers.all());
         if (all.isEmpty()) body.addView(text(this, getString(R.string.api_keys_none), 15, TEXT), gap(18));
         for (Providers.P p : all) body.addView(serviceRow(p), gap(all.indexOf(p) == 0 ? 14 : 4));
@@ -84,6 +88,66 @@ public class ApiKeysActivity extends Screen {
             }
             body.addView(defaultRow(agent), gap(6));
         }
+    }
+
+    /** A model from the phone's own storage: one tap to choose the file (see LocalModel). */
+    private LinearLayout modelCard() {
+        LinearLayout card = column(this);
+        card.setPaddingRelative(dp(this, 14), dp(this, 12), dp(this, 14), dp(this, 14));
+        card.setBackground(outlined(this, CARD, 16, OUTLINE, 1));
+        card.addView(title(this, "Model on this phone", 15));
+        boolean have = LocalModel.ready(this);
+        String busy = LocalModel.importing();
+        String info = busy != null ? busy : have ? LocalModel.describe(this)
+                : "Choose a .gguf model file from your phone's storage. Buddy runs it on this phone, with nothing else to install. "
+                + "Use it in an OpenCode chat. A model with about 4 billion parameters is the fastest that does well with tools.";
+        modelStatus = text(this, info, 13, MUTED);
+        card.addView(modelStatus, gap(4));
+        Button pick = button(this, have ? "Choose another file" : "Choose model file", !have);
+        pick.setEnabled(busy == null);
+        pick.setOnClickListener(v -> startActivityForResult(new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("*/*"), PICK_MODEL));
+        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(this, 48));
+        pp.topMargin = dp(this, 12);
+        card.addView(pick, pp);
+        if (have && busy == null) {
+            Button remove = button(this, "Remove model", false);
+            remove.setOnClickListener(v -> confirmSheet(this, "Remove the model?",
+                    "Buddy deletes its copy of the model file. The file you chose stays where it is.", "Remove", true, () -> {
+                        Providers.remove(this, LocalModel.ID);
+                        render();
+                    }));
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(this, 48));
+            rp.topMargin = dp(this, 8);
+            card.addView(remove, rp);
+        }
+        return card;
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, android.content.Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != PICK_MODEL || res != RESULT_OK || data == null || data.getData() == null) return;
+        final android.net.Uri uri = data.getData();
+        final android.content.Context app = getApplicationContext();
+        LocalModel.starting();
+        render();
+        new Thread(() -> {
+            String msg;
+            try {
+                String name = LocalModel.importModel(app, uri, (done, total) -> runOnUiThread(() -> {
+                    if (modelStatus != null && LocalModel.importing() != null) modelStatus.setText(LocalModel.importing());
+                }));
+                msg = name + " is ready. Start an OpenCode chat to use it.";
+            } catch (Exception e) {
+                msg = e.getMessage() == null ? "Couldn't use that file." : e.getMessage();
+            }
+            final String shown = msg;
+            runOnUiThread(() -> {
+                Toast.makeText(this, shown, Toast.LENGTH_LONG).show();
+                render();
+            });
+        }, "model-import").start();
     }
 
     private LinearLayout serviceRow(Providers.P p) {

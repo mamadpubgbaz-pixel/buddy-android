@@ -264,6 +264,28 @@ final class Relay {
     /** As above; with body null, the request's body (length bytes) is still to be read, and goes on as it comes. */
     static void handle(Context c, String method, String rawPath, Map<String, String> headers, byte[] body,
                        InputStream from, long length, OutputStream out) throws Exception {
+        String[] svc = rawPath.substring(PATH.length()).split("/", 3);
+        Providers.P local = svc.length >= 2 ? Providers.find(svc[0]) : null;
+        if (local == null || !LocalModel.ID.equals(local.id) || local.off) {
+            forward(c, method, rawPath, headers, body, from, length, out);
+            return;
+        }
+        try {
+            LocalModel.acquire(c); // the model on this phone: its server starts now if it isn't running, and the request waits for it
+        } catch (Exception e) {
+            if (body == null) drain(from, length);
+            error(out, 503, "api_error", String.valueOf(e.getMessage()));
+            return;
+        }
+        try {
+            forward(c, method, rawPath, headers, body, from, length, out);
+        } finally {
+            LocalModel.release();
+        }
+    }
+
+    private static void forward(Context c, String method, String rawPath, Map<String, String> headers, byte[] body,
+                                InputStream from, long length, OutputStream out) throws Exception {
         String[] parts = rawPath.substring(PATH.length()).split("/", 3);
         Providers.P p = parts.length >= 2 ? Providers.find(parts[0]) : null;
         boolean anthropic = parts.length >= 2 && "a".equals(parts[1]);

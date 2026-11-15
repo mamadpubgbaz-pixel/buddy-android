@@ -41,6 +41,13 @@ jobs:
         env:
           NDK_VERSION: 27.2.12479018
 
+      # llama.cpp's server, its official Android build at a fixed release and checksum, so Buddy can run a model
+      # chosen from the phone's storage (Settings → API keys → Model on this phone)
+      - name: Add llama.cpp (models on this phone)
+        run: ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION" native/llama.sh
+        env:
+          NDK_VERSION: 27.2.12479018
+
       # Release signing is optional: add the BUDDY_KEYSTORE_BASE64 and BUDDY_KEYSTORE_PASSWORD
       # repository secrets to get a signed APK; otherwise the APK is unsigned.
       - name: Decode signing key
@@ -98,11 +105,13 @@ jobs:
       # What F-Droid will do: build the fdroid APK again, unsigned, somewhere else, and check it matches the signed one
       # above but for the signature. After publishing, so a mismatch shows up red without holding the release back.
       - uses: actions/checkout@v7
+        if: github.repository == 'ghorbelhamdi/buddy-android'
         with:
           submodules: true
           path: rebuild-check # a second copy at another path, as F-Droid's build machine would have
 
       - name: Check the F-Droid APK is reproducible
+        if: github.repository == 'ghorbelhamdi/buddy-android'
         run: |
           pip install --quiet apksigcopier
           export PATH="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1):$PATH" # apksigner

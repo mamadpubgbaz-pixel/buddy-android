@@ -186,6 +186,7 @@ final class Providers {
     static synchronized void remove(Context c, String id) {
         P p = find(id);
         if (p == null) return;
+        if (LocalModel.ID.equals(id)) LocalModel.discard(c); // its server stops and its copy of the model file goes
         all().remove(p);
         Secrets.remove(c, secretName(id));
         for (Account a : Account.ALL) { // an agent that used it by default goes back to its own
@@ -247,6 +248,7 @@ final class Providers {
 
     /** Asks the service for its models (OpenAI-style address first: it lists more) and keeps them. */
     static void fetch(Context c, P p) throws Exception {
+        if (LocalModel.ID.equals(p.id)) return; // the model on this phone: one fixed model, and its server isn't always running
         String key = Secrets.get(c, secretName(p.id));
         if (key == null) return;
         JSONArray m = list(key, p.anthropic, p.openai);
