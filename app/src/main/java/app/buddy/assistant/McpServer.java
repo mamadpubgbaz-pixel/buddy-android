@@ -33,7 +33,7 @@ final class McpServer {
     private static final String DEFAULT_PROTOCOL = "2025-06-18";
     /** What a client shows its model ahead of the tools: how to work with them, and the rules Buddy enforces anyway. */
     static final String INSTRUCTIONS = "Tools to see and operate this Android phone, through the Buddy app. "
-            + "Start with read_screen, and call it again after every action: element ids change with each read. "
+            + "Start with read_screen. Every action returns the updated screen in the same form, so don't call read_screen after one; element ids change with each listing. "
             + "Prefer read_screen over screenshot; use screenshot for images, maps, games and other drawn content. "
             + "Tap a text field before type_text, and use the app's send button rather than assuming Enter sends. "
             + "Use open_app to switch apps. Call confirm with the exact text or action before anything outward-facing "

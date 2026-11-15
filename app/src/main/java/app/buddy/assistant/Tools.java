@@ -56,12 +56,12 @@ final class Tools {
         JSONArray t = new JSONArray();
         t.put(tool("read_screen",
                 "Read what is on the phone screen as a list of UI elements with ids, text, and tap coordinates. "
-                        + "Call this first and after every action to see the result. Element ids are only valid until the next read_screen. "
+                        + "Call this first, and whenever you want to look again without acting. Every action (tap, type_text, scroll, press, open_app, do_steps...) already returns the updated screen in this same form, so don't call read_screen after one. Element ids are only valid until the next screen listing (this one's or an action's). "
                         + "Elements can also show a field's error, its hint, a heading, a tooltip or a pane title; \"(covered by ...)\" means "
                         + "a tap there would land on something else. A toast that just showed is listed at the end.",
                 props()));
         t.put(tool("tap",
-                "Tap an element (by id from the last read_screen) or a screen coordinate in pixels. The result says NOTHING CHANGED "
+                "Tap an element (by id from the last screen listing) or a screen coordinate in pixels. Returns the new screen as read_screen does, or says NOTHING CHANGED "
                         + "when the screen reads the same afterwards, and an element under another window isn't tapped.",
                 props().put("element", intProp("Element id from read_screen"))
                         .put("x", intProp("X in screen pixels")).put("y", intProp("Y in screen pixels"))));
@@ -69,13 +69,13 @@ final class Tools {
                 "Press and hold an element (by id from the last read_screen) or a screen coordinate in pixels, for "
                         + "about 0.7 s. Use it for what apps put behind a long press: a message's or item's menu (reply, "
                         + "copy, delete, react), selecting items or text, moving icons. Use tap for normal taps. Returns "
-                        + "\"Long-pressed\" and where; call read_screen to see the menu or selection it opened.",
+                        + "\"Long-pressed\" and where, with the screen as it is then (the menu or selection it opened).",
                 props().put("element", intProp("Element id from read_screen (give this, or x and y)"))
                         .put("x", intProp("X in screen pixels, when there's no element id"))
                         .put("y", intProp("Y in screen pixels, when there's no element id"))));
         t.put(tool("type_text",
                 "Type into the focused text field (or the given element). Replaces its content unless append is true. "
-                        + "Set submit to press the keyboard's enter/send action afterwards.",
+                        + "Set submit to press the keyboard's enter/send action afterwards. Returns the screen after typing.",
                 props().put("text", strProp("Text to type"))
                         .put("element", intProp("Optional element id of the text field"))
                         .put("append", boolProp("Append instead of replacing"))
@@ -86,15 +86,15 @@ final class Tools {
                         + "screen yet: 'down' shows what's further down (like reading on), 'up' goes back, 'left'/'right' "
                         + "for carousels and tabs. Without element it scrolls the middle of the screen; give the id of a "
                         + "scrollable element (marked scroll in read_screen) to scroll just that list. Returns "
-                        + "\"Scrolled\"; call read_screen to see what came into view. For a precise drag, use swipe.",
+                        + "\"Scrolled\" with the screen as it is then, so you see what came into view. For a precise drag, use swipe.",
                 props().put("direction", enumProp("up", "down", "left", "right"))
                         .put("element", intProp("Optional: id of the scrollable element from read_screen")),
                 "direction"));
         t.put(tool("swipe",
                 "Drag a finger in a straight line from (x1, y1) to (x2, y2), in screen pixels. Use it for gestures "
                         + "scroll doesn't cover: moving a slider, swiping a card or a message aside, pulling down to "
-                        + "refresh, dragging on a map. A very short swipe counts as a tap. Returns \"Swiped\"; call "
-                        + "read_screen to see the result.",
+                        + "refresh, dragging on a map. A very short swipe counts as a tap. Returns \"Swiped\" with the "
+                        + "screen as it is then.",
                 props().put("x1", intProp("Start X in screen pixels")).put("y1", intProp("Start Y in screen pixels"))
                         .put("x2", intProp("End X in screen pixels")).put("y2", intProp("End Y in screen pixels"))
                         .put("duration_ms", intProp("How long the drag takes, 50 to 3000 ms (default 300); slower is "
@@ -104,11 +104,11 @@ final class Tools {
                 "Press one of Android's system buttons: back (leave the current screen or close a dialog or the "
                         + "keyboard), home (go to the home screen), recents (the recent apps list), notifications (pull "
                         + "down the notification shade), quick_settings (open Quick Settings). To switch apps, open_app "
-                        + "is faster than home and recents. Returns \"Pressed\" or \"Could not press\".",
+                        + "is faster than home and recents. Returns \"Pressed\" with the screen as it is then, or \"Could not press\".",
                 props().put("button", enumProp("back", "home", "recents", "notifications", "quick_settings")),
                 "button"));
         t.put(tool("open_app",
-                "Open an installed app by its name (e.g. 'Messenger') or package name.",
+                "Open an installed app by its name (e.g. 'Messenger') or package name. Returns the app's screen once it's up.",
                 props().put("app", strProp("App name or package")), "app"));
         t.put(tool("list_apps", "List launchable apps with their package names.", props()));
         t.put(tool("open_url",
@@ -117,14 +117,14 @@ final class Tools {
                         + "(mailto: an email draft, tel: the dialer with the number, geo: or a maps link a map, "
                         + "market:// the Play Store). Nothing is sent or called by opening a link. For public web pages "
                         + "you only need to read, the browser_* tools work without taking over the screen. Returns "
-                        + "\"Opened\"; call read_screen to see it.",
+                        + "\"Opened\" with the screen as it is then.",
                 props().put("url", strProp("The URL or deep link, e.g. https://example.com or tel:+491234")), "url"));
         t.put(tool("screenshot",
                 "Take a screenshot (JPEG). Use only when read_screen is not enough (images, games, canvas UIs). "
                         + "The reply says how to convert image coordinates to screen pixels.",
                 props()));
         t.put(tool("wait", "Wait for the UI to settle, up to 10000 ms. To wait for something to happen, wait_for is "
-                        + "quicker and surer.",
+                        + "quicker and surer. Returns the screen afterwards.",
                 props().put("ms", intProp("Milliseconds")), "ms"));
         JSONObject until = new JSONObject().put("type", "object").put("description", "Wait after the step for: text to "
                 + "appear, gone text to go, app to be in front, or settled (the screen stops changing); up to timeout_ms.")
@@ -135,7 +135,7 @@ final class Tools {
         t.put(tool("wait_for",
                 "Wait until something happens on the screen, instead of guessing a delay: text appears (a page loaded, "
                         + "a message arrived), text goes (a spinner, \"Sending…\"), an app comes to the front, or the "
-                        + "screen settles. Returns OK with how long it took, or TIMED OUT.",
+                        + "screen settles. Returns OK with how long it took, or TIMED OUT, then the screen as it is.",
                 until.getJSONObject("properties")));
         t.put(tool("do_steps",
                 "Do several phone actions in one call, when you already know them (fill in a form: tap a field, type, "
@@ -145,7 +145,7 @@ final class Tools {
                         + "changed. Optional \"until\" on a step waits for something after it (as in wait_for). The same "
                         + "approvals apply to every step. The batch stops at the first step that fails or is blocked, "
                         + "when an approval card comes up, or when another app comes to the front. Returns what each "
-                        + "step did; call read_screen after.",
+                        + "step did, then the screen as it is after the last one.",
                 props().put("steps", new JSONObject().put("type", "array").put("minItems", 1).put("maxItems", 12)
                         .put("items", new JSONObject().put("type", "object").put("properties", props()
                                 .put("action", enumProp("tap", "long_press", "type", "scroll", "press", "open_app", "wait"))
@@ -467,14 +467,14 @@ final class Tools {
                 return text(openUrl(a.getString("url")));
             }
             case "screenshot": return screenshot();
-            case "wait_for": return text(waitFor(a));
+            case "wait_for": return text(withScreen(waitFor(a)));
             case "do_steps": return text(doSteps(a.getJSONArray("steps")));
             case "collect": return text(collect(a));
             case "find": return text(find(a));
             case "wait": {
                 long ms = Math.max(0, Math.min(10000, a.optLong("ms", 1000)));
                 Thread.sleep(ms);
-                return text("Waited " + ms + " ms.");
+                return text(withScreen("Waited " + ms + " ms."));
             }
             case "confirm": {
                 if (!ruleRun() && Guard.autonomous(svc, frontPkg())) {
@@ -1278,6 +1278,17 @@ final class Tools {
 
     /** do_steps: one action after another, each through the same checks as on its own; stops at the first problem. */
     private String doSteps(JSONArray steps) throws Exception {
+        BATCH.set(Boolean.TRUE);
+        String report;
+        try {
+            report = doStepsRun(steps);
+        } finally {
+            BATCH.remove();
+        }
+        return withScreen(report);
+    }
+
+    private String doStepsRun(JSONArray steps) throws Exception {
         StringBuilder out = new StringBuilder();
         int done = 0;
         for (int i = 0; i < steps.length() && i < 12; i++) {
@@ -1377,7 +1388,7 @@ final class Tools {
                 break;
             }
         }
-        return out + "Done " + done + " of " + steps.length() + " steps. Call read_screen before going on.";
+        return out + "Done " + done + " of " + steps.length() + " steps.";
     }
 
     /** collect: scrolls and gathers the text that comes into view, until nothing new does. */
@@ -1516,7 +1527,7 @@ final class Tools {
         String done = (ok ? (longPress ? "Long-pressed" : "Tapped") : "Gesture was cancelled at") + " (" + x + ", " + y + ")." + note;
         if (!ok) return done + " Call read_screen to see the result.";
         String after = afterAction(before, 1200);
-        return done + (after.isEmpty() ? " Call read_screen to see the result." : after);
+        return after.contains(NOTHING_CHANGED) ? done + after : withScreen(done + after);
     }
 
     // ------------------------------------------------------------- did the action do anything?
@@ -1524,6 +1535,52 @@ final class Tools {
     private static final String NOTHING_CHANGED = "NOTHING CHANGED";
     /** A toast older than this isn't news to the agent. */
     private static final long TOAST_FRESH_MS = 8000;
+
+    /** Set while do_steps runs: its steps don't each return the screen, the batch does once at its end. */
+    private static final ThreadLocal<Boolean> BATCH = new ThreadLocal<>();
+
+    /**
+     * An action's answer plus the screen as it now is, in read_screen's form. The agent needs the screen for its next
+     * step anyway, and the model call a separate read_screen costs is most of what a step takes. The screen is read
+     * once it has stopped moving, so what the agent sees is what stays. Inside do_steps it's left to the batch's end.
+     */
+    private String withScreen(String done) {
+        return withScreen(done, 700, 120);
+    }
+
+    private String withScreen(String done, long maxMs, long stableMs) {
+        if (Boolean.TRUE.equals(BATCH.get())) return done;
+        settle(maxMs, stableMs);
+        return done + "\n\n" + readScreen();
+    }
+
+    /** Waits until the screen has read the same for stableMs (looking every 120 ms), at most maxMs. */
+    private void settle(long maxMs, long stableMs) {
+        long start = android.os.SystemClock.elapsedRealtime(), end = start + maxMs;
+        try {
+            String last = screenPrint();
+            long since = start;
+            while (last != null && android.os.SystemClock.elapsedRealtime() < end) {
+                Thread.sleep(120);
+                String now = screenPrint();
+                long t = android.os.SystemClock.elapsedRealtime();
+                if (now == null) return; // can't be told: not worth waiting
+                if (!now.equals(last)) {
+                    last = now;
+                    since = t;
+                }
+                if (t - since >= stableMs - 119) return; // one look that agrees is enough for 120 ms
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** Waits until pkg is the app in front, at most maxMs: a launch is asynchronous. */
+    private void waitFront(String pkg, long maxMs) throws InterruptedException {
+        long end = android.os.SystemClock.elapsedRealtime() + maxMs;
+        while (android.os.SystemClock.elapsedRealtime() < end && !pkg.equals(frontPkg())) Thread.sleep(100);
+    }
 
     /** Call just before an action: forgets older toasts and returns the screen's state for {@link #afterAction}. */
     private String beforeAction() {
@@ -1540,7 +1597,7 @@ final class Tools {
         try {
             while (before != null && before.equals(screenPrint()) && svc.peekToast() == null
                     && android.os.SystemClock.elapsedRealtime() < end) {
-                Thread.sleep(150);
+                Thread.sleep(100);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -1785,10 +1842,15 @@ final class Tools {
                     : "smart".equals(mode) ? review("Press Enter to send", card, target, text) : null;
             if (blocked != null) return result + " Not sent: " + blocked;
             Thread.sleep(150);
+            String before = beforeAction();
             boolean sent = target.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.getId());
             result += sent ? " Pressed enter." : " Enter action not supported here; tap the send button instead.";
+            if (sent) { // what enter did (a search's results, a sent message) is on the screen read below
+                String after = afterAction(before, 800);
+                result += after.contains(NOTHING_CHANGED) ? " Nothing changed on screen." : after;
+            }
         }
-        return result;
+        return withScreen(result);
     }
 
     /** Is the node part of a web page (Chrome, an app's WebView)? */
@@ -1866,11 +1928,13 @@ final class Tools {
         p.lineTo(xy[2], xy[3]);
         String before = beforeAction();
         boolean ok = gesture(p, 350);
-        Thread.sleep(400);
+        // a batch's next step follows at once, so the list stops first; a single scroll waits for it in withScreen
+        if (Boolean.TRUE.equals(BATCH.get())) Thread.sleep(400);
         if (!ok) return "Scroll was cancelled.";
         String after = afterAction(before, 500);
-        return "Scrolled " + dir + "." + (after.isEmpty() ? " Call read_screen to see the new content."
-                : after.contains(NOTHING_CHANGED) ? " " + NOTHING_CHANGED + ": this is probably the end of the list, or that spot doesn't scroll." : after);
+        if (after.contains(NOTHING_CHANGED))
+            return "Scrolled " + dir + ". " + NOTHING_CHANGED + ": this is probably the end of the list, or that spot doesn't scroll.";
+        return withScreen("Scrolled " + dir + "." + after);
     }
 
     private String swipe(JSONObject a) throws Exception {
@@ -1886,7 +1950,9 @@ final class Tools {
         long d = Math.max(50, Math.min(3000, a.optLong("duration_ms", 300)));
         String before = beforeAction();
         boolean ok = gesture(p, d);
-        return ok ? "Swiped." + afterAction(before, 1000) : "Swipe was cancelled.";
+        if (!ok) return "Swipe was cancelled.";
+        String after = afterAction(before, 1000);
+        return after.contains(NOTHING_CHANGED) ? "Swiped." + after : withScreen("Swiped." + after);
     }
 
     /**
@@ -1966,7 +2032,8 @@ final class Tools {
             } catch (Exception e) {
                 return "Could not press back: " + e.getMessage();
             }
-            return "Pressed back." + afterAction(before, 500);
+            String after = afterAction(before, 500);
+            return after.contains(NOTHING_CHANGED) ? "Pressed back." + after : withScreen("Pressed back." + after);
         }
         int action;
         switch (button) {
@@ -1977,13 +2044,26 @@ final class Tools {
             case "quick_settings": action = AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS; break;
             default: throw new IllegalArgumentException("Unknown button " + button);
         }
-        String before = "back".equals(button) ? beforeAction() : null;
+        boolean back = "back".equals(button);
+        String before = back ? beforeAction() : null;
         boolean ok = svc.performGlobalAction(action);
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException ignored) {
+        if (!ok) return "Could not press " + button + ".";
+        String after = "";
+        if (back) { // as soon as the screen differs, not after a fixed wait
+            after = afterAction(before, 1000);
+        } else { // home, recents and the shades: the transition starts at once; withScreen waits for it to end
+            try {
+                Thread.sleep(Boolean.TRUE.equals(BATCH.get()) ? 500 : 300);
+            } catch (InterruptedException ignored) {
+            }
         }
-        return ok ? "Pressed " + button + "." + afterAction(before, 500) : "Could not press " + button + ".";
+        if (back && Boolean.TRUE.equals(BATCH.get())) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {
+            }
+        }
+        return after.contains(NOTHING_CHANGED) ? "Pressed " + button + "." + after : withScreen("Pressed " + button + "." + after);
     }
 
     private List<ResolveInfo> launchables() {
@@ -2032,12 +2112,13 @@ final class Tools {
                 return "Could not open " + bestLabel + " in the background: " + e.getMessage();
             }
             Thread.sleep(1500);
-            return "Opened " + bestLabel + " (" + best + ") on this chat's background screen. Call read_screen to see it.";
+            return withScreen("Opened " + bestLabel + " (" + best + ") on this chat's background screen.", 2500, 500);
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         svc.startActivity(launch);
-        Thread.sleep(1500);
-        return "Opened " + bestLabel + " (" + best + "). Call read_screen to see it.";
+        waitFront(best, 2500); // as soon as the app is in front, instead of a fixed 1.5 s
+        if (Boolean.TRUE.equals(BATCH.get())) settle(2500, 500); // a batch's next step follows at once
+        return withScreen("Opened " + bestLabel + " (" + best + ").", 2500, 500);
     }
 
     private long installedVersion(String pkg) {
@@ -2190,11 +2271,12 @@ final class Tools {
                 return "Could not open " + url + " in the background: " + e.getMessage();
             }
             Thread.sleep(1500);
-            return "Opened " + url + " on this chat's background screen. Call read_screen to see it.";
+            return withScreen("Opened " + url + " on this chat's background screen.", 2500, 500);
         }
+        String before = beforeAction();
         svc.startActivity(i);
-        Thread.sleep(1500);
-        return "Opened " + url + ". Call read_screen to see it.";
+        afterAction(before, 2500); // as soon as something else is on screen
+        return withScreen("Opened " + url + ".", 2500, 500);
     }
 
     private JSONObject screenshot() throws Exception {
