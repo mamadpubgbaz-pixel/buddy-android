@@ -210,15 +210,31 @@ final class LocalModel {
 
     /** The same for a model file of this size, which may be about to be chosen. */
     static int contextFor(Context c, long modelBytes) {
-        int saved = Prefs.localContext(c);
-        if (saved > 0) return Math.max(LocalModelTuning.MIN_CONTEXT, saved);
-        return LocalModelTuning.automatic(modelBytes, totalRam(c), Prefs.localKvF16(c));
+        LocalModelOptions o = options(c);
+        if (o.context > 0) return Math.max(LocalModelTuning.MIN_CONTEXT, o.context);
+        return LocalModelTuning.automatic(modelBytes, totalRam(c), isF16Cache(o.cacheType));
     }
 
-    /** The CPU threads the engine uses: the number chosen, or the performance cores' share when none was. */
+    /** The settings chosen on the advanced screen (see ModelSettingsActivity); before that screen, the older choices. */
+    static LocalModelOptions options(Context c) {
+        String saved = Prefs.localOptions(c);
+        if (saved != null && !saved.isEmpty()) return LocalModelOptions.decode(saved);
+        LocalModelOptions o = new LocalModelOptions();
+        o.context = Prefs.localContext(c);
+        o.threads = Prefs.localThreads(c);
+        o.cacheType = Prefs.localKvF16(c) ? "f16" : "q8_0";
+        return o;
+    }
+
+    /** Caches of f32, f16 and bf16 take the full-quality estimate; the smaller types take the q8 one. */
+    static boolean isF16Cache(String type) {
+        return "f32".equals(type) || "f16".equals(type) || "bf16".equals(type);
+    }
+
+    /** The CPU threads the engine uses: the number chosen on the advanced screen, or the performance cores' share. */
     static int threads(Context c) {
-        int saved = Prefs.localThreads(c);
-        if (saved > 0) return Math.min(saved, Runtime.getRuntime().availableProcessors());
+        int n = options(c).threads;
+        if (n > 0) return Math.min(n, Runtime.getRuntime().availableProcessors());
         return threadsAuto();
     }
 
@@ -244,12 +260,12 @@ final class LocalModel {
         return mi;
     }
 
-    /** For the card, in plain words: "Chat memory 8k (automatic) · 4 CPU cores · saves memory". */
+    /** For the card, in plain words: "Chat memory 8k (automatic) · 4 CPU cores · Default preset". */
     static String summary(Context c) {
+        LocalModelOptions o = options(c);
         int t = threads(c);
-        return "Chat memory " + servingContext(c) / 1024 + "k" + (Prefs.localContext(c) <= 0 ? " (automatic)" : "")
-                + " · " + t + (t == 1 ? " CPU core" : " CPU cores") + " · "
-                + (Prefs.localKvF16(c) ? "full quality" : "saves memory");
+        return "Chat memory " + servingContext(c) / 1024 + "k" + (o.context <= 0 ? " (automatic)" : "")
+                + " · " + t + (t == 1 ? " CPU core" : " CPU cores") + " · " + o.matchingPreset() + " preset";
     }
 
     /**
@@ -322,11 +338,10 @@ final class LocalModel {
         if (!exe.isFile()) throw new IOException("This build of Buddy doesn't include the model engine.");
         File log = new File(c.getFilesDir(), "llama-server.log");
         if (log.length() > (1 << 20)) log.delete();
-        String cache = Prefs.localKvF16(c) ? "f16" : "q8_0"; // q8 halves the memory of the chat memory, with the same answers in practice
         List<String> cmd = new ArrayList<>(Arrays.asList(exe.getPath(),
-                "-m", model.getPath(), "-c", String.valueOf(servingContext(c)), "-np", "1", "--jinja", // --jinja: tool calls need the model's own template
-                "--host", "127.0.0.1", "--port", String.valueOf(PORT), "-t", String.valueOf(threads(c)),
-                "-fa", "on", "-ctk", cache, "-ctv", cache));
+                "-m", model.getPath(), "-np", "1", "--jinja", // --jinja: tool calls need the model's own template
+                "--host", "127.0.0.1", "--port", String.valueOf(PORT)));
+        cmd.addAll(options(c).serverFlags(servingContext(c), threads(c))); // the advanced settings, as llama.cpp options
         if (!key.isEmpty()) cmd.addAll(Arrays.asList("--api-key", key));
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(c.getFilesDir());

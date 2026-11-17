@@ -129,6 +129,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ModelSettingsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".SkillsActivity"
             android:exported="false" />
 

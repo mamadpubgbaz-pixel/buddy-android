@@ -821,4 +821,13 @@ final class Prefs {
     static void setLocalKvF16(Context c, boolean on) {
         sp(c).edit().putBoolean("local_kv_f16", on).apply();
     }
+
+    /** The advanced settings of the model on this phone, as text (see LocalModelOptions); empty until first saved. */
+    static String localOptions(Context c) {
+        return sp(c).getString("local_options", "");
+    }
+
+    static void setLocalOptions(Context c, String text) {
+        sp(c).edit().putString("local_options", text).apply();
+    }
 }
