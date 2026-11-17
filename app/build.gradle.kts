@@ -74,5 +74,6 @@ android {
 
     buildFeatures {
         buildConfig = true
+        resValues = true // the github build's own app name (resValue above)
     }
 }
