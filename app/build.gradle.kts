@@ -43,7 +43,12 @@ android {
     // fdroid: built and signed by F-Droid from this source; the same app without the self-updater (F-Droid updates it).
     flavorDimensions += "store"
     productFlavors {
-        create("github") { dimension = "store" }
+        create("github") {
+            dimension = "store"
+            // installs next to the original Buddy: its own package name and label; same signing key as our builds
+            applicationIdSuffix = ".local"
+            resValue("string", "app_name", "Buddy Local")
+        }
         create("fdroid") { dimension = "store" }
     }
 
@@ -68,6 +73,6 @@ android {
     }
 
     buildFeatures {
-        buildConfig = false
+        buildConfig = true
     }
 }

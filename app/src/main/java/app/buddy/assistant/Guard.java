@@ -406,7 +406,7 @@ final class Guard {
      */
     static boolean allowable(android.content.Context c, String pkg) {
         return pkg != null && !NEVER_ALLOWED.matcher(pkg).find() && !moneyApp(c, pkg)
-                && !BuildInfo.class.getPackage().getName().equals(pkg);
+                && !BuildConfig.APPLICATION_ID.equals(pkg);
     }
 
     /**
@@ -474,7 +474,7 @@ final class Guard {
     /** Is this Buddy's own UI (its screens, the bubble, its approval card)? */
     static boolean isBuddy(AccessibilityNodeInfo n) {
         return n != null && n.getPackageName() != null
-                && BuildInfo.class.getPackage().getName().contentEquals(n.getPackageName());
+                && BuildConfig.APPLICATION_ID.contentEquals(n.getPackageName());
     }
 
     /**

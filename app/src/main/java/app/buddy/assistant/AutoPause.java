@@ -122,7 +122,7 @@ final class AutoPause {
 
     /** A notification came or went (NotificationWatcher): only whether it's a call is looked at. */
     static void onNotification(StatusBarNotification s, boolean posted) {
-        if (s == null || s.getNotification() == null || BuildInfo.class.getPackage().getName().equals(s.getPackageName())) return;
+        if (s == null || s.getNotification() == null || BuildConfig.APPLICATION_ID.equals(s.getPackageName())) return;
         if (!Notification.CATEGORY_CALL.equals(s.getNotification().category)) return;
         if (!posted) {
             calls.remove(s.getKey());
