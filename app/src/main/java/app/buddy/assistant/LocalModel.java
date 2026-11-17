@@ -1,5 +1,6 @@
 package app.buddy.assistant;
 
+import android.app.ActivityManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
@@ -31,11 +32,6 @@ import org.json.JSONObject;
 final class LocalModel {
     static final String ID = "phone";
     private static final int PORT = 18734;
-    /**
-     * The phone tools' instructions alone take about 7k tokens (README, Local models), and a chat has to fit with
-     * them. Buddy tells the agent this size, so a long chat is shortened before it overruns the server.
-     */
-    private static final int CONTEXT = 24576;
     private static final long IDLE_MS = 10 * 60_000;
 
     interface Progress {
@@ -150,7 +146,8 @@ final class LocalModel {
         p.name = "On this phone";
         p.anthropic = "";
         p.openai = "http://127.0.0.1:" + PORT + "/v1";
-        p.models = new JSONArray().put(new JSONObject().put("id", id).put("name", label).put("window", CONTEXT)
+        int window = contextFor(c, new File(dir(c), id + ".gguf").length()); // the size the agent is told
+        p.models = new JSONArray().put(new JSONObject().put("id", id).put("name", label).put("window", window)
                 .put("efforts", new JSONArray()));
         p.model = id;
         p.shown.clear();
@@ -196,6 +193,76 @@ final class LocalModel {
         String s = fileName.substring(0, fileName.length() - 5).replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^[-.]+|[-.]+$", "");
         if (s.length() > 60) s = s.substring(0, 60);
         return s.isEmpty() ? "model" : s;
+    }
+
+    // ---- the settings (Model settings, under the card in Settings → API keys) ----
+
+    /**
+     * The chat memory the server runs with, in tokens: the size chosen, or the largest that fits this phone when none
+     * was. The phone tools' instructions alone take about 7k tokens (README, Local models), and a chat has to fit with
+     * them, so the smallest size offered is 8k. Buddy tells the agent this size, and a long chat is shortened before it
+     * overruns the server.
+     */
+    static int servingContext(Context c) {
+        File f = file(c);
+        return contextFor(c, f == null ? 0 : f.length());
+    }
+
+    /** The same for a model file of this size, which may be about to be chosen. */
+    static int contextFor(Context c, long modelBytes) {
+        int saved = Prefs.localContext(c);
+        if (saved > 0) return Math.max(LocalModelTuning.MIN_CONTEXT, saved);
+        return LocalModelTuning.automatic(modelBytes, totalRam(c), Prefs.localKvF16(c));
+    }
+
+    /** The CPU threads the engine uses: the number chosen, or the performance cores' share when none was. */
+    static int threads(Context c) {
+        int saved = Prefs.localThreads(c);
+        if (saved > 0) return Math.min(saved, Runtime.getRuntime().availableProcessors());
+        return threadsAuto();
+    }
+
+    /** The performance cores' share: more threads than that slow a phone down (its small cores hold the rest back). */
+    static int threadsAuto() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        return Math.max(2, Math.min(6, (cores + 1) / 2));
+    }
+
+    /** The phone's RAM in bytes, as Android reports it. */
+    static long totalRam(Context c) {
+        return memory(c).totalMem;
+    }
+
+    /** The RAM that is free right now, in bytes. */
+    static long freeRam(Context c) {
+        return memory(c).availMem;
+    }
+
+    private static ActivityManager.MemoryInfo memory(Context c) {
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        ((ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
+        return mi;
+    }
+
+    /** For the card, in plain words: "Chat memory 8k (automatic) · 4 CPU cores · saves memory". */
+    static String summary(Context c) {
+        int t = threads(c);
+        return "Chat memory " + servingContext(c) / 1024 + "k" + (Prefs.localContext(c) <= 0 ? " (automatic)" : "")
+                + " · " + t + (t == 1 ? " CPU core" : " CPU cores") + " · "
+                + (Prefs.localKvF16(c) ? "full quality" : "saves memory");
+    }
+
+    /**
+     * After Model settings change: the agent is told the new size, and the server stops, so its next request starts it
+     * with the new numbers.
+     */
+    static void applySettings(Context c) throws Exception {
+        Providers.P p = Providers.find(ID);
+        if (p != null && p.models.length() > 0) {
+            p.models.optJSONObject(0).put("window", servingContext(c));
+            Providers.save(c, p, null); // null keeps the saved key
+        }
+        stop();
     }
 
     // ---- the server ----
@@ -255,10 +322,11 @@ final class LocalModel {
         if (!exe.isFile()) throw new IOException("This build of Buddy doesn't include the model engine.");
         File log = new File(c.getFilesDir(), "llama-server.log");
         if (log.length() > (1 << 20)) log.delete();
+        String cache = Prefs.localKvF16(c) ? "f16" : "q8_0"; // q8 halves the memory of the chat memory, with the same answers in practice
         List<String> cmd = new ArrayList<>(Arrays.asList(exe.getPath(),
-                "-m", model.getPath(), "-c", String.valueOf(CONTEXT), "-np", "1", "--jinja", // --jinja: tool calls need the model's own template
-                "--host", "127.0.0.1", "--port", String.valueOf(PORT), "-t", String.valueOf(threads()),
-                "-fa", "on", "-ctk", "q8_0", "-ctv", "q8_0")); // half the memory for the context, same answers for practical purposes
+                "-m", model.getPath(), "-c", String.valueOf(servingContext(c)), "-np", "1", "--jinja", // --jinja: tool calls need the model's own template
+                "--host", "127.0.0.1", "--port", String.valueOf(PORT), "-t", String.valueOf(threads(c)),
+                "-fa", "on", "-ctk", cache, "-ctv", cache));
         if (!key.isEmpty()) cmd.addAll(Arrays.asList("--api-key", key));
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(c.getFilesDir());
@@ -268,12 +336,6 @@ final class LocalModel {
         pb.redirectErrorStream(true);
         pb.redirectOutput(ProcessBuilder.Redirect.appendTo(log));
         return pb.start();
-    }
-
-    /** The performance cores' share: more threads than that slow a phone down (its small cores hold the rest back). */
-    private static int threads() {
-        int cores = Runtime.getRuntime().availableProcessors();
-        return Math.max(2, Math.min(6, (cores + 1) / 2));
     }
 
     private static boolean healthy() {

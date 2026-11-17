@@ -794,4 +794,31 @@ final class Prefs {
     static void setWaiting(Context c, String json) {
         sp(c).edit().putString("waiting", json).apply();
     }
+
+    /** Chat memory size chosen for the model on this phone, in tokens; 0 means automatic. */
+    static int localContext(Context c) {
+        return sp(c).getInt("local_ctx", 0);
+    }
+
+    static void setLocalContext(Context c, int tokens) {
+        sp(c).edit().putInt("local_ctx", tokens).apply();
+    }
+
+    /** CPU cores chosen for the model on this phone; 0 means automatic. */
+    static int localThreads(Context c) {
+        return sp(c).getInt("local_threads", 0);
+    }
+
+    static void setLocalThreads(Context c, int threads) {
+        sp(c).edit().putInt("local_threads", threads).apply();
+    }
+
+    /** Whether the model on this phone keeps full quality (f16) instead of saving memory (q8). */
+    static boolean localKvF16(Context c) {
+        return sp(c).getBoolean("local_kv_f16", false);
+    }
+
+    static void setLocalKvF16(Context c, boolean on) {
+        sp(c).edit().putBoolean("local_kv_f16", on).apply();
+    }
 }

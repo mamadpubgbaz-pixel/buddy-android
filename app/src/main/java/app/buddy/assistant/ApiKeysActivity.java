@@ -9,6 +9,8 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -98,7 +100,7 @@ public class ApiKeysActivity extends Screen {
         card.addView(title(this, "Model on this phone", 15));
         boolean have = LocalModel.ready(this);
         String busy = LocalModel.importing();
-        String info = busy != null ? busy : have ? LocalModel.describe(this)
+        String info = busy != null ? busy : have ? LocalModel.describe(this) + "\n" + LocalModel.summary(this)
                 : "Choose a .gguf model file from your phone's storage. Buddy runs it on this phone, with nothing else to install. "
                 + "Use it in an OpenCode chat. A model with about 4 billion parameters is the fastest that does well with tools.";
         modelStatus = text(this, info, 13, MUTED);
@@ -111,6 +113,11 @@ public class ApiKeysActivity extends Screen {
         pp.topMargin = dp(this, 12);
         card.addView(pick, pp);
         if (have && busy == null) {
+            Button tune = button(this, "Model settings", false);
+            tune.setOnClickListener(v -> tuneModel());
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(this, 48));
+            tp.topMargin = dp(this, 8);
+            card.addView(tune, tp);
             Button remove = button(this, "Remove model", false);
             remove.setOnClickListener(v -> confirmSheet(this, "Remove the model?",
                     "Buddy deletes its copy of the model file. The file you chose stays where it is.", "Remove", true, () -> {
@@ -122,6 +129,135 @@ public class ApiKeysActivity extends Screen {
             card.addView(remove, rp);
         }
         return card;
+    }
+
+    /**
+     * Model settings, in plain words: how much chat the model keeps in memory, how many CPU cores it uses, and whether
+     * it saves memory. A status line says whether the choice should run on this phone. Saved, and the model starts with
+     * the new settings on its next request.
+     */
+    private void tuneModel() {
+        final android.content.Context app = getApplicationContext();
+        final long model = LocalModel.file(this) == null ? 0 : LocalModel.file(this).length();
+        final long total = LocalModel.totalRam(this);
+        final int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
+        final int savedCtx = Prefs.localContext(this);
+        final int savedThreads = Prefs.localThreads(this);
+
+        LinearLayout box = column(this);
+        box.setPaddingRelative(dp(this, 18), dp(this, 8), dp(this, 18), dp(this, 8));
+        box.addView(text(this, "Pick what fits your phone. Changes apply the next time the model starts.", 13, MUTED));
+
+        box.addView(sectionLabel(this, "How much chat it keeps in memory"), gap(14));
+        box.addView(text(this, "8k is about 6,000 words. Bigger uses more memory.", 12, MUTED));
+        final RadioGroup ctxGroup = choices(new String[]{"", "8k · about 6,000 words", "12k · about 9,000 words",
+                "16k · about 12,000 words", "24k · about 18,000 words"},
+                savedCtx <= 0 ? 0 : indexAtMost(savedCtx) + 1);
+        box.addView(ctxGroup);
+
+        box.addView(sectionLabel(this, "CPU cores"), gap(14));
+        box.addView(text(this, "More cores isn't always faster on a phone. Automatic uses the fast ones.", 12, MUTED));
+        String[] coreLabels = new String[cores + 1];
+        coreLabels[0] = "";
+        for (int i = 1; i <= cores; i++) coreLabels[i] = i + (i == 1 ? " core" : " cores");
+        final RadioGroup threadGroup = choices(coreLabels, savedThreads <= 0 ? 0 : Math.min(savedThreads, cores));
+        box.addView(threadGroup);
+
+        box.addView(sectionLabel(this, "Memory saving"), gap(14));
+        final RadioGroup cacheGroup = choices(new String[]{"Save memory (recommended)",
+                "Full quality (uses more memory)"}, Prefs.localKvF16(this) ? 1 : 0);
+        box.addView(cacheGroup);
+
+        box.addView(sectionLabel(this, "GPU"), gap(14));
+        box.addView(text(this, "Not available in this version. The model runs on the phone's CPU.", 12, MUTED));
+
+        final TextView status = title(this, "", 15);
+        final TextView detail = text(this, "", 12, MUTED);
+        box.addView(status, gap(18));
+        box.addView(detail, gap(4));
+
+        final Runnable refresh = () -> {
+            int ci = checkedIndex(ctxGroup);
+            boolean f16 = checkedIndex(cacheGroup) == 1;
+            int auto = LocalModelTuning.automatic(model, total, f16);
+            int autoCores = LocalModel.threadsAuto();
+            ((RadioButton) ctxGroup.getChildAt(0)).setText("Automatic (recommended): " + auto / 1024 + "k");
+            ((RadioButton) threadGroup.getChildAt(0)).setText("Automatic (recommended): " + autoCores
+                    + (autoCores == 1 ? " core" : " cores"));
+            int context = ci <= 0 ? auto : LocalModelTuning.CONTEXTS[ci - 1];
+            long free = LocalModel.freeRam(this);
+            int level = LocalModelTuning.level(model, context, f16, free, total);
+            long need = LocalModelTuning.needBytes(model, context, f16);
+            status.setText(level == LocalModelTuning.GOOD ? "Should run on this phone"
+                    : level == LocalModelTuning.TIGHT ? "Tight: it may be slow, or Android may stop it"
+                    : "Too big for this phone right now");
+            status.setTextColor(level == LocalModelTuning.GOOD ? 0xFF2E7D32
+                    : level == LocalModelTuning.TIGHT ? 0xFFB26A00 : 0xFFC62828);
+            detail.setText(String.format(java.util.Locale.US,
+                    "Needs about %.1f GB. %.1f GB is free now, of %.1f GB on this phone.%s",
+                    need / 1e9, free / 1e9, total / 1e9,
+                    level == LocalModelTuning.GOOD ? "" : " Close other apps, or pick a smaller size. You can still save this."));
+        };
+        ctxGroup.setOnCheckedChangeListener((g, id) -> refresh.run());
+        cacheGroup.setOnCheckedChangeListener((g, id) -> refresh.run());
+        threadGroup.setOnCheckedChangeListener((g, id) -> refresh.run());
+        refresh.run();
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(box);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Model settings")
+                .setView(scroll)
+                .setPositiveButton("Save", (d, w) -> {
+                    int ci = checkedIndex(ctxGroup), ti = checkedIndex(threadGroup), ki = checkedIndex(cacheGroup);
+                    Prefs.setLocalContext(app, ci <= 0 ? 0 : LocalModelTuning.CONTEXTS[ci - 1]);
+                    Prefs.setLocalThreads(app, ti <= 0 ? 0 : ti);
+                    Prefs.setLocalKvF16(app, ki == 1);
+                    new Thread(() -> {
+                        String msg;
+                        try {
+                            LocalModel.applySettings(app);
+                            msg = "Saved. The model starts with these settings next time you chat.";
+                        } catch (Exception e) {
+                            msg = "Saved, but Buddy couldn't update the model: " + e.getMessage();
+                        }
+                        final String shown = msg;
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, shown, Toast.LENGTH_LONG).show();
+                            render();
+                        });
+                    }, "model-settings").start();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /** A column of radio buttons, with the one at position checked selected (-1 for none). */
+    private RadioGroup choices(String[] labels, int checked) {
+        RadioGroup g = new RadioGroup(this);
+        g.setOrientation(LinearLayout.VERTICAL);
+        for (String label : labels) {
+            RadioButton b = new RadioButton(this);
+            b.setId(View.generateViewId());
+            b.setText(label);
+            g.addView(b);
+        }
+        if (checked >= 0 && checked < labels.length) ((RadioButton) g.getChildAt(checked)).setChecked(true);
+        return g;
+    }
+
+    /** The position of the selected radio button in its group, or -1. */
+    private static int checkedIndex(RadioGroup g) {
+        int id = g.getCheckedRadioButtonId();
+        for (int i = 0; i < g.getChildCount(); i++) if (g.getChildAt(i).getId() == id) return i;
+        return -1;
+    }
+
+    /** The position in LocalModelTuning.CONTEXTS of the largest size not above saved (0 when none is). */
+    private static int indexAtMost(int saved) {
+        int idx = 0;
+        for (int i = 0; i < LocalModelTuning.CONTEXTS.length; i++) if (LocalModelTuning.CONTEXTS[i] <= saved) idx = i;
+        return idx;
     }
 
     @Override
