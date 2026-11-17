@@ -63,7 +63,13 @@ jobs:
       - name: Build release APKs (GitHub and F-Droid)
         env:
           BUDDY_KEYSTORE_PASSWORD: ${{ secrets.BUDDY_KEYSTORE_PASSWORD }}
-        run: ./gradlew --no-daemon assembleGithubRelease assembleFdroidRelease
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon assembleGithubRelease assembleFdroidRelease 2>&1 | tee gradle.log || {
+            # the real error, as annotations on the run (the log itself is not reachable from outside)
+            tail -n 220 gradle.log | grep -v '^[[:space:]]*$' | tr '\n' '|' | fold -w 1000 | head -n 15 | while IFS= read -r chunk; do echo "::error::$chunk"; done
+            exit 1
+          }
 
       - name: Collect APK
         run: |
