@@ -79,7 +79,7 @@ final class Voice {
     /** Languages offered for voice: {BCP-47 tag, name}. */
     static final String[][] LANGUAGES = {
             {"en-US", "English"}, {"fr-FR", "Français"}, {"de-DE", "Deutsch"}, {"ar-TN", "العربية · تونس"},
-            {"ar-SA", "العربية"}, {"es-ES", "Español"}, {"it-IT", "Italiano"}, {"pt-PT", "Português"},
+            {"ar-SA", "العربية"}, {"fa-IR", "فارسی"}, {"es-ES", "Español"}, {"it-IT", "Italiano"}, {"pt-PT", "Português"},
             {"nl-NL", "Nederlands"}, {"tr-TR", "Türkçe"}, {"ru-RU", "Русский"}, {"ja-JP", "日本語"},
     };
 

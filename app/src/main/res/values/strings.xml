@@ -2223,4 +2223,6 @@
     <string name="chat_rename_title">Rename chat</string>
     <string name="chat_rename_hint">Empty: its first message</string>
     <string name="chat_rename_save">Save</string>
+    <string name="setup_app_language">App language</string>
+    <string name="setup_app_language_system">Same as the phone</string>
 </resources>

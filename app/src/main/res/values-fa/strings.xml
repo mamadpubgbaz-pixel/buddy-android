@@ -257,4 +257,6 @@
     <string name="hub_tool_phone_shell">دستور گوشی: %1$s</string>
     <string name="hub_compacting">در حال فشرده‌سازی گفتگو…</string>
     <string name="hub_compacted">گفتگو فشرده شد: از %1$s به %2$s توکن</string>
+    <string name="setup_app_language">زبان برنامه</string>
+    <string name="setup_app_language_system">مثل زبان گوشی</string>
 </resources>

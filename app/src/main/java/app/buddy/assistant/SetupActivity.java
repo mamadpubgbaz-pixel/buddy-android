@@ -668,6 +668,10 @@ public class SetupActivity extends Screen implements Account.Listener, RemoteSes
         // ----------------------------------------------------------- experience
         list.addView(sectionLabel(this, getString(R.string.setup_experience)));
         LinearLayout ex = card();
+        if (android.os.Build.VERSION.SDK_INT >= 33) { // Android 13+: the app's own language, set right here
+            ex.addView(appLanguageRow(), full());
+            ex.addView(divider(), lineParams());
+        }
         ex.addView(switchRow(this, getString(R.string.setup_chat_bubble), getString(R.string.setup_chat_bubble_info),
                 Prefs.bubbleEnabled(this), on -> {
             Prefs.setBubbleEnabled(this, on);
@@ -1418,5 +1422,54 @@ public class SetupActivity extends Screen implements Account.Listener, RemoteSes
 
     private void openUrl(String url) {
         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+    }
+
+    /** Buddy's languages for the app language row; the tags are the ones in res/xml/locales_config.xml. */
+    static final String[][] APP_LANGUAGES = {
+            {"en", "English"}, {"fa", "فارسی"}, {"ar", "العربية"}, {"de", "Deutsch"}, {"es", "Español"},
+            {"fr", "Français"}, {"hi", "हिन्दी"}, {"id", "Bahasa Indonesia"}, {"it", "Italiano"}, {"ja", "日本語"},
+            {"ko", "한국어"}, {"nl", "Nederlands"}, {"pl", "Polski"}, {"pt", "Português"}, {"ru", "Русский"},
+            {"tr", "Türkçe"}, {"uk", "Українська"}, {"vi", "Tiếng Việt"}, {"zh-CN", "简体中文"},
+    };
+
+    /** The row in Settings → Experience: the language Buddy's text is shown in, changed in one tap. */
+    private View appLanguageRow() {
+        LinearLayout r = listRow(this);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setPaddingRelative(dp(this, 16), dp(this, 14), dp(this, 12), dp(this, 14));
+        LinearLayout t = column(this);
+        t.addView(title(this, getString(R.string.setup_app_language), 15));
+        t.addView(text(this, appLanguageName(currentAppLanguage()), 13, MUTED));
+        r.addView(t, weight1());
+        r.addView(icon(this, R.drawable.ms_chevron_right, MUTED, 22));
+        r.setOnClickListener(v -> pickAppLanguage());
+        return r;
+    }
+
+    /** The tag Buddy's language is set to ("" when it follows the phone). */
+    private String currentAppLanguage() {
+        android.os.LocaleList now = getSystemService(android.app.LocaleManager.class).getApplicationLocales();
+        return now.isEmpty() ? "" : now.get(0).toLanguageTag();
+    }
+
+    private String appLanguageName(String tag) {
+        for (String[] l : APP_LANGUAGES) if (l[0].equals(tag)) return l[1];
+        return getString(R.string.setup_app_language_system);
+    }
+
+    private void pickAppLanguage() {
+        String[] tags = new String[APP_LANGUAGES.length + 1];
+        String[] names = new String[APP_LANGUAGES.length + 1];
+        tags[0] = "";
+        names[0] = getString(R.string.setup_app_language_system);
+        for (int i = 0; i < APP_LANGUAGES.length; i++) {
+            tags[i + 1] = APP_LANGUAGES[i][0];
+            names[i + 1] = APP_LANGUAGES[i][1];
+        }
+        new android.app.AlertDialog.Builder(this).setTitle(R.string.setup_app_language)
+                .setItems(names, (d, which) -> getSystemService(android.app.LocaleManager.class).setApplicationLocales(
+                        tags[which].isEmpty() ? android.os.LocaleList.getEmptyLocaleList()
+                                : new android.os.LocaleList(java.util.Locale.forLanguageTag(tags[which]))))
+                .show();
     }
 }
