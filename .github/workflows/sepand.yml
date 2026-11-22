@@ -11,6 +11,7 @@ on:
       - '*.gradle.kts'
       - 'gradle.properties'
       - 'docs/**'
+      - '.github/workflows/sepand.yml'
   workflow_dispatch:
 permissions:
   contents: write
