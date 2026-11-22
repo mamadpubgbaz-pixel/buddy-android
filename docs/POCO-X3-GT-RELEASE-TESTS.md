@@ -31,3 +31,5 @@ This is a test plan, not a statement that physical-device validation has already
 ## Release build record
 
 GitHub Actions compiles the native llama.cpp dependency before running the Android Gradle build. An APK is releasable only after both stages succeed.
+
+Retry note: Android SDK component provisioning accepts sdkmanager license prompts without failing on the closed input pipe.
