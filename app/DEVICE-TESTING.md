@@ -12,3 +12,5 @@ Before treating a build as stable on the handset, test:
 - MCP HTTPS/loopback initialization, tool approval and errors.
 
 Do not enable background auto-replies until the intended app and exact conversation have been allowlisted and tested.
+
+The Vulkan shader compiler is now provisioned before llama.cpp native bootstrap in CI.
