@@ -225,7 +225,6 @@ class SepandNotificationListener : NotificationListenerService() {
                 extras.getParcelableArray(Notification.EXTRA_MESSAGES)
             )?.lastOrNull()
         }.getOrNull()
-        if (styleMessage?.isRemoteInputHistory == true) return ""
         val styleText = styleMessage?.text?.toString().orEmpty()
         return styleText.ifBlank {
             extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty()
