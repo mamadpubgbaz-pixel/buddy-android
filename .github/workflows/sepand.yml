@@ -47,7 +47,7 @@ jobs:
       - name: Prepare llama.kt native sources
         run: bash scripts/bootstrap.sh
       - name: Build OpenCL loader stub required by native linker
-        run: bash scripts/build-opencl.sh
+        run: bash libs/llama.kt/scripts/build-opencl.sh
       - name: Build testing APK
         run: |
           gradle :app:assembleDebug
