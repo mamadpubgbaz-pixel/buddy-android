@@ -1,0 +1,47 @@
+name: One-time Buddy to Sepand source replacement
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "sepand-source.zip.b64"
+
+permissions:
+  contents: write
+
+jobs:
+  replace-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Decode and validate Sepand source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s sepand-source.zip.b64
+          mkdir -p "$RUNNER_TEMP/sepand-source"
+          base64 --decode sepand-source.zip.b64 > "$RUNNER_TEMP/sepand-source/source.zip"
+          unzip -t "$RUNNER_TEMP/sepand-source/source.zip"
+          unzip -q "$RUNNER_TEMP/sepand-source/source.zip" -d "$RUNNER_TEMP/sepand-source/unpacked"
+          test -f "$RUNNER_TEMP/sepand-source/unpacked/sepand-ai/settings.gradle.kts"
+          test -f "$RUNNER_TEMP/sepand-source/unpacked/sepand-ai/app/src/main/AndroidManifest.xml"
+          test -f "$RUNNER_TEMP/sepand-source/unpacked/sepand-ai/.github/workflows/release.yml"
+
+      - name: Replace repository root with Sepand AI
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/sepand-source/unpacked/sepand-ai"
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$SOURCE/." .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Replace Buddy Android source with Sepand AI 0.2.0-beta1"
+          git push origin HEAD:main
