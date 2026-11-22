@@ -27,3 +27,7 @@ Target handset: Xiaomi Poco X3 GT (MediaTek Dimensity 1100, Mali-G77 MC9, 8 GB R
 - Test MCP HTTPS and loopback server initialization, tool listing, approval, denial and failure reporting.
 
 This is a test plan, not a statement that physical-device validation has already passed.
+
+## Release build record
+
+GitHub Actions compiles the native llama.cpp dependency before running the Android Gradle build. An APK is releasable only after both stages succeed.
