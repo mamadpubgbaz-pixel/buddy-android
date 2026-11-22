@@ -5,6 +5,7 @@ plugins {
 
 android {
     namespace = "com.sepand.ai"
+    // Compose BOM 2026.09 uses AndroidX artifacts that require compileSdk 37.
     compileSdk = 37
     ndkVersion = "27.2.12479018"
 
