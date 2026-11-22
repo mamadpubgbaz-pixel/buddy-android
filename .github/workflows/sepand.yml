@@ -42,7 +42,7 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           set -o pipefail
-          "$SDKMANAGER" 'platforms;android-37' 'build-tools;36.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+          "$SDKMANAGER" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
       - name: Install Vulkan shader compiler
         run: sudo apt-get update && sudo apt-get install -y glslc
       - name: Prepare llama.kt native sources
