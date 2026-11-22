@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.sepand.ai"
-    compileSdk = 37
+    compileSdk = 36
     ndkVersion = "27.2.12479018"
 
     defaultConfig {
