@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - "sepand-source.zip.b64"
+      - "sepand-upload-trigger.txt"
 
 permissions:
   contents: write
@@ -23,9 +23,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s sepand-source.zip.b64
+          for part in 1 2 3 4; do test -s "sepand-source.part${part}.b64"; done
           mkdir -p "$RUNNER_TEMP/sepand-source"
-          base64 --decode sepand-source.zip.b64 > "$RUNNER_TEMP/sepand-source/source.zip"
+          cat sepand-source.part{1..4}.b64 > "$RUNNER_TEMP/sepand-source/source.zip.b64"
+          base64 --decode "$RUNNER_TEMP/sepand-source/source.zip.b64" > "$RUNNER_TEMP/sepand-source/source.zip"
           unzip -t "$RUNNER_TEMP/sepand-source/source.zip"
           unzip -q "$RUNNER_TEMP/sepand-source/source.zip" -d "$RUNNER_TEMP/sepand-source/unpacked"
           test -f "$RUNNER_TEMP/sepand-source/unpacked/sepand-ai/settings.gradle.kts"
