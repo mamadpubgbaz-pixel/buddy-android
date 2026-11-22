@@ -1,79 +1,54 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Version lives in BuildInfo.java so the Gradle and on-device (build.sh) builds always agree.
-val buildInfo = file("src/main/java/app/buddy/assistant/BuildInfo.java").readText()
-val appVersionName = Regex("""VERSION = "([^"]+)"""").find(buildInfo)!!.groupValues[1]
-val appVersionCode = Regex("""VERSION_CODE = (\d+)""").find(buildInfo)!!.groupValues[1].toInt()
-
 android {
-    // proot for the built-in Linux ships as native libraries and must be extracted to disk to run
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-    namespace = "app.buddy.assistant"
-    compileSdk = 36
+    namespace = "com.sepand.ai"
+    compileSdk = 37
+    ndkVersion = "27.2.12479018"
 
     defaultConfig {
-        applicationId = "app.buddy.assistant"
-        minSdk = 30
-        targetSdk = 36
-        versionCode = appVersionCode
-        versionName = appVersionName
+        applicationId = "com.sepand.ai"
+        minSdk = 29
+        targetSdk = 35
+        versionCode = 2
+        versionName = "0.2.0-beta1"
+        vectorDrawables { useSupportLibrary = true }
     }
 
-    // Release signing comes from environment variables (set as GitHub Actions secrets).
-    // Without them, assembleRelease produces an unsigned APK.
-    val keystorePath = System.getenv("BUDDY_KEYSTORE")
-    signingConfigs {
-        if (keystorePath != null) {
-            create("release") {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("BUDDY_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("BUDDY_KEY_ALIAS") ?: "buddy"
-                keyPassword = System.getenv("BUDDY_KEY_PASSWORD") ?: System.getenv("BUDDY_KEYSTORE_PASSWORD")
-            }
-        }
-    }
-
-    // github: the release on GitHub, which updates itself from GitHub releases.
-    // fdroid: built and signed by F-Droid from this source; the same app without the self-updater (F-Droid updates it).
-    flavorDimensions += "store"
-    productFlavors {
-        create("github") {
-            dimension = "store"
-            // installs next to the original Buddy: its own package name and label; same signing key as our builds
-            applicationIdSuffix = ".local"
-            resValue("string", "app_name", "Buddy Local")
-        }
-        create("fdroid") { dimension = "store" }
-    }
-
-    // No Google-only dependency blob and no git details in the APK: F-Droid requires the first, and both keep the
-    // fdroid APK the same whoever builds it (F-Droid's reproducible build compares its APK with the one on GitHub).
-    dependenciesInfo {
-        includeInApk = false
-        includeInBundle = false
-    }
-
+    buildFeatures { compose = true }
     buildTypes {
+        debug { }
         release {
-            isMinifyEnabled = false
-            vcsInfo.include = false
-            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+    packaging { jniLibs { useLegacyPackaging = false } }
+}
 
-    buildFeatures {
-        buildConfig = true
-        resValues = true // the github build's own app name (resValue above)
-    }
+
+dependencies {
+    implementation(project(":llama-kt"))
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.documentfile:documentfile:1.1.0")
+    // Fully local image classification + Tesseract OCR (English and Persian models are user-downloadable).
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }

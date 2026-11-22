@@ -1,6 +1,3 @@
-[submodule "third_party/proot"]
-	path = third_party/proot
-	url = https://github.com/termux/proot.git
-[submodule "third_party/libandroid-shmem"]
-	path = third_party/libandroid-shmem
-	url = https://github.com/termux/libandroid-shmem.git
+[submodule "llama.kt"]
+	path = libs/llama.kt
+	url = https://github.com/tensai-app/llama.kt.git

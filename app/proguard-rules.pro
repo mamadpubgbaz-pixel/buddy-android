@@ -1,0 +1,2 @@
+-keep class com.tensai.llamakt.** { *; }
+-keepclasseswithmembers class * { native <methods>; }

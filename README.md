@@ -1,141 +1,82 @@
-<p align="center">
-  <img src="docs/banner.png" alt="Buddy: Claude Code, Codex, OpenCode, Antigravity and Grok in a bubble on your Android phone" width="100%">
-</p>
+# Sepand AI for Android
 
-<p align="center">
-  <a href="https://github.com/ghorbelhamdi/buddy-android/releases/latest"><img src="https://img.shields.io/github/v/release/ghorbelhamdi/buddy-android?style=for-the-badge&label=release" alt="Latest release"></a>
-  <a href="https://github.com/ghorbelhamdi/buddy-android/releases"><img src="https://img.shields.io/github/downloads/ghorbelhamdi/buddy-android/total?style=for-the-badge" alt="Downloads"></a>
-  <a href="https://f-droid.org/packages/app.buddy.assistant/"><img src="https://img.shields.io/f-droid/v/app.buddy.assistant?style=for-the-badge&logo=fdroid&logoColor=white" alt="Buddy on F-Droid"></a>
-  <img src="https://img.shields.io/badge/Android-11%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 11+">
-  <a href="https://www.producthunt.com/products/buddy-20"><img src="https://img.shields.io/badge/Product_Hunt-Buddy-DA552F?style=for-the-badge&logo=producthunt&logoColor=white" alt="Buddy on Product Hunt"></a>
-  <a href="https://glama.ai/mcp/servers/ghorbelhamdi/buddy-android"><img src="https://glama.ai/mcp/servers/ghorbelhamdi/buddy-android/badges/score.svg" alt="Buddy MCP server on Glama" height="28"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" alt="License: Apache-2.0"></a>
-</p>
+**Version:** 0.2.0-beta1  
+**Application ID:** `com.sepand.ai`  
+**Target:** Xiaomi Poco X3 GT · MediaTek Dimensity 1100 · Mali-G77 MC9 · 8 GB RAM  
+**Minimum Android:** 10 (API 29) · tuned initially for Android 13 / MIUI
 
-# Buddy
+Sepand AI is a local-first Android phone agent. The app uses Spark-X2.6 GGUF through the native `tensai-app/llama.kt` llama.cpp binding, Android Accessibility for on-screen control, optional notification inline replies, local OCR/image labels, local speech APIs, MCP Streamable HTTP, and read-only Obsidian retrieval.
 
-**A floating chat bubble that lets Claude Code, Codex, OpenCode, Antigravity or Grok use your Android phone.**
+## Feature set in this beta
 
-Type or say what you want, like "reply to Sam that I'm running late" or "add a Switch 2 to my Amazon cart". Buddy reads the screen, taps and types to get it done, and asks you before anything is sent, posted, bought or deleted.
+- **Phone control:** accessibility screen text snapshots, app launching, scroll gestures, tap by visible label, text entry, Back, Home, and web search. Actions run in a bounded multi-step observe/act/verify loop (1–8 actions depending on the selected thinking budget).
+- **Message sending:** one-off sends require approval of the exact draft, recipient and target app. Sepand first tries a matching notification inline-reply action; if unavailable, it can use the visible conversation UI after checking the foreground app and exact recipient label. It only clicks a clearly labelled Send/ارسال control.
+- **Allowlisted auto-replies:** optional and OFF by default. After a separate global opt-in, you can specify exact Android app package names and exact conversation titles. The notification listener uses the local Spark model to draft a short reply and sends it only through that notification's inline `RemoteInput` action. It skips messages flagged as sensitive/financial, refuses to use accessibility as an auto-send fallback, checks the allowlists again before sending, and stops if the notification changed or disappeared. Apps that do not expose inline reply actions are not supported by background auto-reply.
+- **Approval gates:** message sends, all typed text, MCP calls, and sensitive button clicks pause for a separate approval. Sepand does not type passwords, one-time codes, payment details, or recovery codes.
+- **Visual input:** bundled ML Kit image labels (400+ categories) plus English/Persian Tesseract OCR. Video input samples up to three frames and applies the same local pipeline. This is on-device classification and text extraction, not a generative vision-language model; Spark-X2.6 itself remains text-only. OCR language packs are downloaded once on first OCR use, then processed locally.
+- **Documents and files:** common text/code files, PDF (first 8 pages rendered/OCRed), DOCX/XLSX/PPTX text, and bounded text entries from ZIP/EPUB archives. Audio files remain file references; pre-recorded audio transcription and video soundtrack transcription are not implemented. Video visual analysis is limited to three sampled frames. Unknown binary files are retained as references, not decoded.
+- **Voice:** microphone speech recognition through Android's on-device recognizer when installed and supported; offline TTS voices already installed on the device. Sepand will not fall back to a cloud speech recognizer. Download the desired offline speech/voice packs in Android settings first. Arbitrary audio-file transcription and continuous wake-word listening are not supported.
+- **Obsidian:** the chosen vault is searched on every user turn when connected. Local Spark expands the request bilingually, a local BM25 ranker narrows the candidate set, and Spark locally reranks those candidates by meaning. This is hybrid lexical + LLM semantic retrieval, not a dense vector/embedding index. Retrieved notes are reference data, not instructions.
+- **MCP:** Streamable HTTP `initialize`, `tools/list`, and `tools/call`; supports HTTPS endpoints and HTTP only for `localhost` / `127.0.0.1`. Each tool call requires approval. Stdio transport, OAuth, and per-tool credential vaults are not included.
+- **Interface:** Persian/English with RTL for Persian, four glass themes (Dark Red, Dark Green, White Red, White Green), editable system prompt, six thinking presets, file picker, settings, and a user-started floating control panel.
+- **Inference controls:** Auto starts on CPU, CPU-only, Vulkan/GPU offload, and experimental hybrid CPU/GPU are selectable. A backend change requires reloading the model. The app uses a 3,072-token context and big-core-aware llama.kt thread selection.
 
-It runs inside the app, on your own plan: [Claude Code](https://docs.claude.com/en/docs/claude-code) with your Claude plan, Codex with your ChatGPT plan, Google's [Antigravity CLI](https://antigravity.google) with your Google account, xAI's [Grok Build](https://x.ai/build) with your Google or X account, or [OpenCode](https://opencode.ai) with its free models and no account at all. No PC, no adb, no root, and no API key needed (you can add keys for other services, such as DeepSeek or OpenRouter, and use them with Claude Code, Codex or OpenCode).
+## Local model and hardware recommendations
 
-<p align="center"><a href="https://github.com/ghorbelhamdi/buddy-android/releases/latest/download/buddy.apk"><b>Download the APK</b></a> · <a href="https://f-droid.org/packages/app.buddy.assistant/">F-Droid</a> · <a href="https://ghorbelhamdi.github.io/buddy-android/">Website</a> · Android 11+, 64-bit</p>
+Start with **Spark-X2.6-1.7B Q4_K_M GGUF**. The 4B model can consume a large part of the phone's 8 GB RAM and is not the default recommendation. XHToken publishes Spark-X2.6-1.7B and 4B as text models; image input is handled separately by the app's local image-label/OCR path.
 
-<div align="center">
+- Model project and licensing: <https://github.com/XHToken/Spark-X2.6>
+- Official model collection: <https://huggingface.co/collections/XHToken/spark-x26>
+- Android inference runtime: <https://github.com/tensai-app/llama.kt>
 
-https://github.com/user-attachments/assets/d07936fc-4788-4ab5-a105-31b3e9aeba4f
+The model's native thinking interface exposes three modes (none, low, high). Sepand's six presets change generation limits/action budgets and map several presets onto those model modes; they are not six native Spark reasoning modes.
 
-<sub>Codex turns on the lights while OpenCode's free model adds a Switch 2 to the Amazon cart (real recordings, waiting sped up)</sub>
-</div>
+**Poco X3 GT notes:** Auto deliberately starts with CPU. Vulkan support exists in the selected llama.cpp Android binding and has been validated by its maintainers on another Mali/MediaTek device, not on this exact phone. Dense model inference can be faster on CPU on Mali; full GPU offload can also consume unevictable shared RAM. Test CPU first, then GPU and hybrid while watching temperature, battery, and memory pressure. No root, overclock, or thermal-throttle bypass is used.
 
-<table>
-  <tr>
-    <td width="33%" align="center"><img src="docs/screens/chats.jpg" alt="Chats with different agents"><br><sub>Chats with any agent</sub></td>
-    <td width="33%" align="center"><img src="docs/screens/chat.jpg" alt="A chat with grouped tool calls"><br><sub>Tool calls fold into one line</sub></td>
-    <td width="33%" align="center"><img src="docs/screens/settings.jpg" alt="Settings"><br><sub>Setup guide and themes</sub></td>
-  </tr>
-</table>
+## Permissions and safety
 
-## What it can do
+- Accessibility is required for on-screen reading, scrolling, tapping, and typing. Enable it manually in Android Settings.
+- Notification access is optional and needed for notification previews/inline replies. Capture previews are stored locally only when the user turns the feature on.
+- Overlay permission is optional and only used after the user starts the floating controls.
+- Microphone permission is requested only when the user taps Mic.
+- The app does not bypass app restrictions, protected screens, encryption, Android permission boundaries, or Android's send/notification controls.
+- Web search opens the user's selected browser. Search queries and any MCP-server requests leave the device according to the destination's own privacy policy.
 
-| | |
-|---|---|
-| **Uses your apps** | Messages, shopping, smart home, settings: anything on screen. Add instructions while it works. |
-| **Asks first** | Approve, Deny or Change before anything is sent, posted, bought or deleted. |
-| **Shows you how** | "Show me how to turn on dark mode": it points at each step and waits for your tap. |
-| **Acts on notifications** | "When a customer asks on WhatsApp, reply with our opening hours", with your OK, a countdown you can stop, or right away. |
-| **Voice** | Talk to it and have replies read aloud. |
-| **Background mode** | The agent works in your apps on a screen of its own that you don't see, while you keep using your phone. Set up once with the phone's own Wireless debugging, no computer; watch it live in the chat. Optional: let it run `adb shell` commands on the phone, each one approved by you. |
-| **Sub-agents** | "Compare this on eBay, Amazon and AliExpress": the agent starts sub-agents that each work in an app on a hidden screen of their own, at the same time, and report back. They only look things up; you see every screen in the chat. |
-| **Background browser** | Web pages in a browser inside Buddy, without taking over your screen, even while the phone is locked. Watch and use it live in the chat; it marks what you need to do (sign in, a captcha) and never types your passwords. |
-| **Builds apps** | Turn on Linux tools in a chat and "make me a calculator app" builds a real APK on the phone; the GitHub version also installs it for you. |
-| **Phone tools anywhere** | The same tools as a local MCP server for your own Claude Code, Codex, OpenCode, Antigravity or Grok sessions, or over stdio with [mcp-bridge](mcp-bridge) for clients that start servers as commands. |
+## Build from source
 
-<p align="center">
-  <a href="https://youtube.com/shorts/wPZvwy08BTE"><img src="docs/screens/sub-agents.gif" alt="Three sub-agents comparing a price on eBay, Amazon and AliExpress at the same time" width="320"></a><br>
-  <sub>Three sub-agents, three shops, at the same time (<a href="https://youtube.com/shorts/wPZvwy08BTE">30 s video</a>)</sub>
-</p>
+Requirements:
 
-> **Status: 2.3, early.** It works well day to day but has rough edges. Tested most on a OnePlus 12 (Android 16). Buddy is an independent project, not made by or affiliated with Anthropic, OpenAI, Google or xAI.
+- JDK 21
+- Android SDK Platform 37
+- Android Build Tools 36.0.0
+- Android NDK `27.2.12479018`
+- CMake 3.22.1
+- Gradle 9.8.2 (or newer compatible with AGP 9.5.0)
 
-## How it works
-
-```
-Buddy app / bubble ──► Buddy's Linux (Alpine via proot): claude, codex, opencode, agy or grok
-        ▲                                                     │
-        └──────────── streamed replies ◄──────────────────────┤
-                                                              ▼
-Buddy accessibility service ◄──── MCP on 127.0.0.1 (phone tools)
+```bash
+bash scripts/bootstrap.sh
+gradle :app:assembleDebug
 ```
 
-Buddy is a normal Android app with an accessibility service, the kind of permission screen readers use. The agent runs in a small Linux inside the app and uses Buddy's phone tools (read the screen, tap, type, scroll, open apps) over a local MCP server. No adb or Wireless debugging, and it works without Wi-Fi.
+APK output:
 
-## Setup
-
-You need a 64-bit Android 11+ phone, plus a Claude, ChatGPT or Google account for those agents (Grok: a Google or X account). OpenCode's free models need no account.
-
-1. **Install Buddy:** [download buddy.apk](https://github.com/ghorbelhamdi/buddy-android/releases/latest/download/buddy.apk) and open it, or get it from [F-Droid](https://f-droid.org/packages/app.buddy.assistant/). The APK updates itself; on F-Droid each version arrives a few days later, and F-Droid updates it for you. Both are the same app with the same signature, so you can switch between them without reinstalling. Buddy also installs the apps it builds for you. (Google Play turned Buddy down for production: its policy doesn't allow apps that use accessibility to carry out tasks.)
-2. **Follow the setup guide** that opens on first launch: pick your agent, turn on the accessibility service, install and sign in, and try a first task.
-
-**Install blocked or "Restricted setting"?** See [Setup in detail](docs/GUIDE.md#setup-in-detail).
-
-## Local models
-
-Run the model on your own computer and nothing goes to an AI company. Start [Ollama](https://ollama.com), LM Studio or llama.cpp's server on a PC (for Ollama, set `OLLAMA_HOST=0.0.0.0` and a context of at least 24k tokens, e.g. `OLLAMA_CONTEXT_LENGTH=24576`, since the phone tools take about 7k). In Buddy: Settings → API keys → Add API key → **Ollama** (or LM Studio, llama.cpp), put the PC's address on your Wi-Fi instead of `localhost`, leave the key empty, and use it in an OpenCode chat. Plain `http://` works on your own network and over Tailscale.
-
-What to expect, from tests on an RTX 2060 Super (8 GB): Qwen3 8B and Qwen3 4B handle simple one-step requests, like the battery level or the phone's status. Multi-step tasks on the screen are another matter: in a calculator test the 4B tapped the wrong buttons and then said it had worked. For real tasks, use a bigger model that's good at tool calling. The first answer of a chat takes longest, since the model first reads about 13k tokens of instructions and tool descriptions. A model running on the phone itself works too, but it's slow and makes the phone lag.
-
-**On this phone:** Settings → API keys → **Model on this phone** → *Choose model file*, and pick a `.gguf` file from your storage (4-bit, with tool calling; about 4 billion parameters is the fastest size that does well). Buddy copies it into its own storage and runs it itself with llama.cpp, so there is nothing else to install; then start an OpenCode chat. The model loads when a chat first needs it, takes a few GB of memory while it runs, and Buddy stops it after ten minutes without a request. A server of your own on the phone (llama.cpp in Termux, say) works too: add it as **llama.cpp** below, with `-c` at least 24576 and `--jinja`; Buddy asks llama.cpp's `/props` for the context it runs with and tells the agent.
-
-## Updating
-
-Install the new APK over the old one: chats, settings and sign-ins stay (don't uninstall first). You can also ask Buddy to *"update yourself"*, or let [Obtainium](https://obtainium.imranr.dev) or F-Droid do it ([how](docs/GUIDE.md#updating)).
-
-## Security
-
-An accessibility service is powerful, so please read this.
-
-- **Local only.** The phone tools listen on `127.0.0.1` with a random per-install token.
-- **Buddy enforces the approvals, not the agent.** Messaging, shopping and money apps start on a hard limit: Buddy itself stops on buttons like Send, Pay and Delete until you OK them.
-- **Prompt injection is the main risk.** A message or web page could try to give the agent orders. On-screen text is treated as content, and the approval card is the backstop, so read it.
-- **No passwords.** Buddy never types passwords, codes or payment details; it hands those to you.
-- **What leaves the phone:** only what the agent sends to its provider (Anthropic, OpenAI, Google, xAI, OpenCode's service or the provider you connected) to answer you.
-
-More in [Security in detail](docs/GUIDE.md#security-in-detail). Found a problem? Please open a private security advisory instead of a public issue.
-
-## FAQ
-
-**What does it cost?** Buddy is free. The agent uses your plan's limits, or nothing at all with OpenCode's free models (no account) or Antigravity's free plan (Google account).
-
-**iPhone?** No. iOS doesn't let apps operate other apps.
-
-**Which phones?** 64-bit Android 11 or newer. On some brands, set Buddy's battery use to *Unrestricted*.
-
-**Does it need a computer, adb or root?** No.
-
-## Learn more
-
-- [User guide](docs/GUIDE.md): chats, models, voice, notification rules, the bubble, Remote Control, SSH and Linux tools
-- [Benchmark](benchmark/README.md): which model uses a phone best
-- [Privacy policy](docs/PRIVACY.md)
-
-**In the press:** [ProPakistani](https://propakistani.pk/2026/10/12/this-free-android-app-lets-claude-code-use-your-phone/), [The Neutral](https://theneutral.pk/this-free-android-app-lets-ai-control-your-phone-without-a-pc/), [Trendshift](https://trendshift.io/repositories/289557) (October 2026)
-
-## Contributing
-
-Bug reports, ideas and translation fixes are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). If Buddy is useful to you, a ⭐ helps other people find it.
-
-## For developers
-
-```
-git clone --recurse-submodules https://github.com/ghorbelhamdi/buddy-android.git
-./gradlew assembleRelease     # Android Studio / Gradle
-./build.sh                    # on the phone in Termux, no Gradle → build/buddy-release.apk
+```text
+app/build/outputs/apk/debug/app-debug.apk
 ```
 
-proot and libandroid-shmem are git submodules in `third_party/` (`git submodule update --init` in an existing clone). `build.sh` needs `pkg install openjdk-17 aapt2 d8 apksigner python clang make` and android.jar from platform-36 at `~/android-sdk/android-36/android.jar`. It creates a signing key at `~/.buddy-keys/release.jks` on first run: back it up, since updates must be signed with the same key. Gradle release signing reads `BUDDY_KEYSTORE` and `BUDDY_KEYSTORE_PASSWORD` (optionally `BUDDY_KEY_ALIAS`, `BUDDY_KEY_PASSWORD`). The version lives in `BuildInfo.java`, and the project layout is in [CONTRIBUTING.md](CONTRIBUTING.md#project-layout).
+GitHub Actions runs the native bootstrap and APK build. Each main-branch push also creates a **testing prerelease** with a debug-signed APK. This is for sideload testing, not a Play Store production-signed release. CI debug signing keys are ephemeral; future beta updates may need the previous app uninstalled before installing a new CI artifact. A persistent signing key should be configured as GitHub Actions secrets before stable update releases.
 
-## License
+## Install and first-run setup on Poco X3 GT
 
-[Apache-2.0](LICENSE). Geist fonts: SIL Open Font License. Icons: Material Symbols (Apache-2.0). Bundled proot (GPL-2.0), talloc (LGPL-3.0) and libandroid-shmem (BSD-3-Clause): see [third_party](third_party/README.md) for licences and source.
+1. Install the `Sepand AI` APK. It uses application ID `com.sepand.ai`, so it installs separately from Buddy; it cannot silently replace an already-installed Buddy app.
+2. Download a compatible Spark-X2.6-1.7B GGUF quantization and import it in Settings. The official XHToken release is not automatically downloaded by the app.
+3. Start with Auto/CPU, Thinking 3, and the default context.
+4. Pick the Obsidian vault folder in Memory and grant persistent read access.
+5. Enable Sepand Accessibility in Android Settings for phone interaction.
+6. Optionally enable notification access for inline replies and notification previews.
+7. Install offline English/Persian speech packs and offline TTS voices in Android settings if you want local voice use.
+8. Try a simple, non-sensitive task first. Review every approval card, especially before sending a message.
+
+## Repository migration
+
+This codebase replaces the Buddy source at the root of the `mamadpubgbaz-pixel/buddy-android` repository. The previous Buddy tree is preserved on branch `backup/buddy-before-sepand-20261122`. The repository URL slug may still say `buddy-android`; the application itself is Sepand AI.
