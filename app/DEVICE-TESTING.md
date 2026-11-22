@@ -14,3 +14,5 @@ Before treating a build as stable on the handset, test:
 Do not enable background auto-replies until the intended app and exact conversation have been allowlisted and tested.
 
 The Vulkan shader compiler is now provisioned before llama.cpp native bootstrap in CI.
+
+The Android CI now builds the llama.kt OpenCL ICD loader stub before linking the Vulkan-enabled native inference library.
