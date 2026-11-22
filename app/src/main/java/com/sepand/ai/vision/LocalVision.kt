@@ -60,7 +60,7 @@ object LocalVision {
     private fun analyzeBitmapInternal(context: Context, bitmap: Bitmap): String {
         val sections = mutableListOf<String>()
         val scaled = downscale(bitmap, 1600)
-        try {
+        return try {
             val labels = runCatching {
                 val client = ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
                 try {
